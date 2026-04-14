@@ -3,13 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>动态页面加载器</title>
+    <title>网页后台管理</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+        }
+        
+        /* 登录页面 */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .login-box {
+            background: white;
+            border-radius: 28px;
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        .login-box h1 {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-box p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 1.2rem;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            outline: none;
+        }
+        .login-box input:focus {
+            border-color: #667eea;
+        }
+        .login-box button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .login-box button:hover {
+            transform: scale(1.02);
+        }
+        .login-error {
+            color: #dc2626;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        /* 主界面 */
+        .main-app {
+            display: none;
+        }
+        .main-app.show {
+            display: block;
         }
         .loader-header {
             background: rgba(255,255,255,0.95);
@@ -115,55 +182,6 @@
         .editor-pane { display: none; }
         .editor-pane.active { display: block; }
         
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-        }
-        .overlay.show { display: block; }
-        
-        .pwd-modal {
-            display: none;
-            position: fixed;
-            top: 30%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 28px;
-            padding: 30px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.3);
-            z-index: 10000;
-            max-width: 380px;
-            width: 90%;
-        }
-        .pwd-modal.show { display: block; }
-        .pwd-modal h4 { margin-bottom: 20px; color: #333; }
-        .pwd-modal input {
-            width: 100%;
-            padding: 14px;
-            font-size: 1.1rem;
-            text-align: center;
-            border: 2px solid #e2e8f0;
-            border-radius: 20px;
-            margin-bottom: 20px;
-        }
-        .pwd-modal input:focus { border-color: #667eea; outline: none; }
-        .pwd-actions { display: flex; gap: 12px; }
-        .pwd-actions button {
-            flex: 1;
-            padding: 14px;
-            border-radius: 40px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            font-size: 1rem;
-        }
-        .btn-confirm { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-cancel { background: #f1f5f9; color: #333; }
-        
         .toast-msg {
             position: fixed;
             bottom: 30px;
@@ -185,81 +203,100 @@
             gap: 10px;
             flex-wrap: wrap;
         }
+        
+        .logout-btn {
+            background: #f1f5f9;
+            color: #333;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .logout-btn:hover {
+            background: #e2e8f0;
+        }
     </style>
 </head>
 <body>
-    <div class="loader-header">
-        <h1>📦 动态内容加载器</h1>
-        <div class="page-selector">
-            <select id="pageSelect">
-                <option value="">-- 选择页面 --</option>
-            </select>
-            <button id="loadPageBtn">📂 加载</button>
-            <button id="toggleAdminBtn" style="background:#f1f5f9;color:#333;">⚙️ 管理</button>
-            <span class="status-badge status-loading" id="loadStatus">⏳ 就绪</span>
+    <!-- 登录页面 -->
+    <div class="login-container" id="loginPage">
+        <div class="login-box">
+            <h1>🔐 网页后台管理</h1>
+            <p>请输入密码进入</p>
+            <input type="password" id="loginPwdInput" placeholder="密码" maxlength="20" autofocus>
+            <button id="loginBtn">登 录</button>
+            <div class="login-error" id="loginError"></div>
         </div>
     </div>
 
-    <div class="admin-panel" id="adminPanel">
-        <h3>📝 代码编辑器</h3>
-        <label>📛 页面名称:</label>
-        <input type="text" id="adminPageName" placeholder="例如: message_board">
-        
-        <div class="editor-tabs">
-            <button class="editor-tab active" data-tab="html">📄 HTML</button>
-            <button class="editor-tab" data-tab="css">🎨 CSS</button>
-            <button class="editor-tab" data-tab="js">⚙️ JavaScript</button>
-            <button class="editor-tab" data-tab="combined">📦 完整代码</button>
+    <!-- 主应用 -->
+    <div class="main-app" id="mainApp">
+        <div class="loader-header">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h1>📦 网页后台管理</h1>
+                <button class="logout-btn" id="logoutBtn">🚪 退出登录</button>
+            </div>
+            <div class="page-selector">
+                <select id="pageSelect">
+                    <option value="">-- 选择页面 --</option>
+                </select>
+                <button id="loadPageBtn">📂 加载</button>
+                <button id="toggleAdminBtn" style="background:#f1f5f9;color:#333;">⚙️ 管理</button>
+                <span class="status-badge status-loading" id="loadStatus">⏳ 就绪</span>
+            </div>
         </div>
-        
-        <div class="editor-pane active" id="pane-html">
-            <label>HTML 内容:</label>
-            <textarea id="adminHtml" rows="12" placeholder="HTML 代码..."></textarea>
-        </div>
-        
-        <div class="editor-pane" id="pane-css">
-            <label>CSS 内容:</label>
-            <textarea id="adminCss" rows="12" placeholder="CSS 代码..."></textarea>
-        </div>
-        
-        <div class="editor-pane" id="pane-js">
-            <label>JavaScript 内容:</label>
-            <textarea id="adminJs" rows="12" placeholder="JavaScript 代码..."></textarea>
-        </div>
-        
-        <div class="editor-pane" id="pane-combined">
-            <label>完整 HTML 代码:</label>
-            <textarea id="adminCombined" rows="12" placeholder="粘贴完整的 HTML 代码..."></textarea>
-            <p style="font-size:12px;color:#666;margin-top:5px;">💡 粘贴完整代码后，点击「解析」自动拆分为 HTML/CSS/JS</p>
-            <button id="parseCombinedBtn" style="margin-top:10px;background:#667eea;">🔍 解析代码</button>
-        </div>
-        
-        <div class="action-buttons">
-            <button id="savePageBtn">💾 保存到数据库</button>
-            <button id="deletePageBtn" class="btn-danger">🗑️ 删除此页面</button>
-            <button id="closeAdminBtn" class="btn-secondary">❌ 关闭</button>
-        </div>
-        <p style="margin-top:15px;font-size:12px;color:#666;">🔒 保存/删除需要输入密码 (12345)</p>
-    </div>
 
-    <div id="dynamicContent">
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-            </svg>
-            <h3>请选择要加载的页面</h3>
-            <p>从上方下拉菜单选择页面，或通过 URL 参数 ?page=xxx 直接访问</p>
+        <div class="admin-panel" id="adminPanel">
+            <h3>📝 代码编辑器</h3>
+            <label>📛 页面名称:</label>
+            <input type="text" id="adminPageName" placeholder="例如: message_board">
+            
+            <div class="editor-tabs">
+                <button class="editor-tab active" data-tab="html">📄 HTML</button>
+                <button class="editor-tab" data-tab="css">🎨 CSS</button>
+                <button class="editor-tab" data-tab="js">⚙️ JavaScript</button>
+                <button class="editor-tab" data-tab="combined">📦 完整代码</button>
+            </div>
+            
+            <div class="editor-pane active" id="pane-html">
+                <label>HTML 内容:</label>
+                <textarea id="adminHtml" rows="12" placeholder="HTML 代码..."></textarea>
+            </div>
+            
+            <div class="editor-pane" id="pane-css">
+                <label>CSS 内容:</label>
+                <textarea id="adminCss" rows="12" placeholder="CSS 代码..."></textarea>
+            </div>
+            
+            <div class="editor-pane" id="pane-js">
+                <label>JavaScript 内容:</label>
+                <textarea id="adminJs" rows="12" placeholder="JavaScript 代码..."></textarea>
+            </div>
+            
+            <div class="editor-pane" id="pane-combined">
+                <label>完整 HTML 代码:</label>
+                <textarea id="adminCombined" rows="12" placeholder="粘贴完整的 HTML 代码..."></textarea>
+                <p style="font-size:12px;color:#666;margin-top:5px;">💡 粘贴完整代码后，点击「解析」自动拆分为 HTML/CSS/JS</p>
+                <button id="parseCombinedBtn" style="margin-top:10px;background:#667eea;">🔍 解析代码</button>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="savePageBtn">💾 保存到数据库</button>
+                <button id="deletePageBtn" class="btn-danger">🗑️ 删除此页面</button>
+                <button id="closeAdminBtn" class="btn-secondary">❌ 关闭</button>
+            </div>
+            <p style="margin-top:15px;font-size:12px;color:#666;">🔒 保存/删除无需二次密码验证</p>
         </div>
-    </div>
 
-    <div class="overlay" id="overlay"></div>
-    
-    <div class="pwd-modal" id="passwordModal">
-        <h4>🔐 请输入密码</h4>
-        <input type="password" id="pwdInput" placeholder="密码" maxlength="20">
-        <div class="pwd-actions">
-            <button class="btn-confirm" id="pwdConfirm">确认</button>
-            <button class="btn-cancel" id="pwdCancel">取消</button>
+        <div id="dynamicContent">
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                </svg>
+                <h3>请选择要加载的页面</h3>
+                <p>从上方下拉菜单选择页面，或通过 URL 参数 ?page=xxx 直接访问</p>
+            </div>
         </div>
     </div>
 
@@ -270,11 +307,20 @@
 
         const SUPABASE_URL = 'https://sqhcbwqrpyzglbcclzzj.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxaGNid3FycHl6Z2xiY2NsenpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODIwMDUsImV4cCI6MjA5MTc1ODAwNX0.1-MdHopPxwfzU9Zu78Ae4FiyMazAPswrA4HwcHJKeP0';
-        const ADMIN_PASSWORD = '12345';
+        const LOGIN_PASSWORD = '12345';
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         window.sharedSupabase = supabase;
 
+        // 登录相关
+        const loginPage = document.getElementById('loginPage');
+        const mainApp = document.getElementById('mainApp');
+        const loginPwdInput = document.getElementById('loginPwdInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // 主应用元素
         const pageSelect = document.getElementById('pageSelect');
         const loadPageBtn = document.getElementById('loadPageBtn');
         const loadStatus = document.getElementById('loadStatus');
@@ -290,16 +336,55 @@
         const adminJs = document.getElementById('adminJs');
         const adminCombined = document.getElementById('adminCombined');
         const parseCombinedBtn = document.getElementById('parseCombinedBtn');
-        const overlay = document.getElementById('overlay');
-        const passwordModal = document.getElementById('passwordModal');
-        const pwdInput = document.getElementById('pwdInput');
-        const pwdConfirm = document.getElementById('pwdConfirm');
-        const pwdCancel = document.getElementById('pwdCancel');
         const toast = document.getElementById('toast');
 
-        let pendingAction = null;
+        let isLoggedIn = false;
 
-        console.log('✅ 动态加载器已启动');
+        // 检查登录状态
+        function checkLogin() {
+            const saved = sessionStorage.getItem('admin_logged_in');
+            if (saved === 'true') {
+                isLoggedIn = true;
+                loginPage.style.display = 'none';
+                mainApp.classList.add('show');
+                loadPageList();
+            }
+        }
+
+        // 登录
+        function login() {
+            const pwd = loginPwdInput.value.trim();
+            if (pwd === LOGIN_PASSWORD) {
+                isLoggedIn = true;
+                sessionStorage.setItem('admin_logged_in', 'true');
+                loginPage.style.display = 'none';
+                mainApp.classList.add('show');
+                loginError.textContent = '';
+                loadPageList();
+                showToast('✅ 登录成功');
+            } else {
+                loginError.textContent = '❌ 密码错误';
+                loginPwdInput.value = '';
+                loginPwdInput.focus();
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            isLoggedIn = false;
+            sessionStorage.removeItem('admin_logged_in');
+            mainApp.classList.remove('show');
+            loginPage.style.display = 'flex';
+            loginPwdInput.value = '';
+            loginPwdInput.focus();
+            loginError.textContent = '';
+        }
+
+        function showToast(text) {
+            toast.textContent = text;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
 
         // 标签页切换
         document.querySelectorAll('.editor-tab').forEach(tab => {
@@ -339,60 +424,6 @@
             document.querySelector('[data-tab="html"]').click();
             showToast('✅ 代码已解析');
         });
-
-        function showToast(text) {
-            toast.textContent = text;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2000);
-        }
-
-        function showPasswordModal(action) {
-            pendingAction = action;
-            pwdInput.value = '';
-            overlay.classList.add('show');
-            passwordModal.classList.add('show');
-            pwdInput.focus();
-        }
-
-        function hidePasswordModal() {
-            overlay.classList.remove('show');
-            passwordModal.classList.remove('show');
-        }
-
-        async function verifyPassword() {
-            const pwd = pwdInput.value.trim();
-            
-            if (pwd !== ADMIN_PASSWORD) {
-                alert('❌ 密码错误');
-                pwdInput.value = '';
-                pwdInput.focus();
-                return;
-            }
-            
-            const action = pendingAction;
-            overlay.classList.remove('show');
-            passwordModal.classList.remove('show');
-            
-            if (action === 'admin') {
-                await openAdminPanel();
-            } else if (action === 'save') {
-                await savePageCode();
-            } else if (action === 'delete') {
-                await deletePageCode();
-            }
-            
-            pendingAction = null;
-        }
-
-        async function openAdminPanel() {
-            const page = pageSelect.value;
-            if (page) {
-                await loadPageForEdit(page);
-                adminPageName.value = page;
-            }
-            adminPanel.classList.add('show');
-            showToast('✅ 已进入管理模式');
-        }
 
         async function loadPageList() {
             const { data, error } = await supabase
@@ -476,7 +507,6 @@
                 adminCss.value = data.css_content || '';
                 adminJs.value = data.js_content || '';
                 adminCombined.value = '';
-                console.log('✅ 已加载到编辑器:', pageName);
             }
         }
 
@@ -555,6 +585,10 @@
         }
 
         // 事件绑定
+        loginBtn.addEventListener('click', login);
+        loginPwdInput.addEventListener('keypress', e => { if (e.key === 'Enter') login(); });
+        logoutBtn.addEventListener('click', logout);
+
         loadPageBtn.addEventListener('click', () => {
             const page = pageSelect.value;
             if (page) loadPage(page);
@@ -565,7 +599,6 @@
             const page = pageSelect.value;
             if (page) {
                 loadPage(page);
-                // 🔥 如果管理面板是打开的，自动加载到编辑器
                 if (adminPanel.classList.contains('show')) {
                     loadPageForEdit(page);
                     adminPageName.value = page;
@@ -574,41 +607,23 @@
         });
 
         toggleAdminBtn.addEventListener('click', () => {
-            showPasswordModal('admin');
+            const page = pageSelect.value;
+            if (page) {
+                loadPageForEdit(page);
+                adminPageName.value = page;
+            }
+            adminPanel.classList.add('show');
         });
 
         closeAdminBtn.addEventListener('click', () => {
             adminPanel.classList.remove('show');
         });
 
-        savePageBtn.addEventListener('click', () => {
-            if (!adminPageName.value.trim()) {
-                alert('请输入页面名称');
-                return;
-            }
-            showPasswordModal('save');
-        });
-
-        deletePageBtn.addEventListener('click', () => {
-            if (!adminPageName.value.trim()) {
-                alert('请输入页面名称');
-                return;
-            }
-            showPasswordModal('delete');
-        });
-
-        pwdConfirm.addEventListener('click', verifyPassword);
-        pwdCancel.addEventListener('click', hidePasswordModal);
-        pwdInput.addEventListener('keypress', e => { if (e.key === 'Enter') verifyPassword(); });
-        overlay.addEventListener('click', hidePasswordModal);
-        document.addEventListener('keydown', e => { 
-            if (e.key === 'Escape' && passwordModal.classList.contains('show')) {
-                hidePasswordModal();
-            }
-        });
+        savePageBtn.addEventListener('click', savePageCode);
+        deletePageBtn.addEventListener('click', deletePageCode);
 
         // 初始化
-        loadPageList();
+        checkLogin();
     </script>
 </body>
 </html>
