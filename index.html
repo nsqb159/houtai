@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>我的网站</title>
+  <!-- 只引入一次 Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { margin: 0; padding: 0; font-family: system-ui, sans-serif; }
@@ -17,81 +18,80 @@
   </div>
 
   <script>
-    // Supabase 配置（与后台相同）
-    const SUPABASE_URL = 'https://sqhcbwqrpyzglbcclzzj.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxaGNid3FycHl6Z2xiY2NsenpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODIwMDUsImV4cCI6MjA5MTc1ODAwNX0.1-MdHopPxwfzU9Zu78Ae4FiyMazAPswrA4HwcHJKeP0';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    (function(){
+      'use strict';
 
-    // 从 URL 获取 slug（例如 /about 对应 about，首页用 home）
-    function getSlugFromPath() {
-      const path = window.location.pathname;
-      let slug = path.slice(1); // 去掉开头的 '/'
-      if (slug === '' || slug === '/') slug = 'home';
-      // 如果 URL 包含子路径（如 /blog/post-1），保留完整 slug
-      return slug;
-    }
+      // Supabase 配置
+      const SUPABASE_URL = 'https://sqhcbwqrpyzglbcclzzj.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxaGNid3FycHl6Z2xiY2NsenpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODIwMDUsImV4cCI6MjA5MTc1ODAwNX0.1-MdHopPxwfzU9Zu78Ae4FiyMazAPswrA4HwcHJKeP0';
+      
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    async function loadPage() {
-      const slug = getSlugFromPath();
-      document.title = `加载中 - ${slug}`;
-
-      const { data, error } = await supabase
-        .from('pages')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_published', true)
-        .maybeSingle();
-
-      const appDiv = document.getElementById('app');
-
-      if (error) {
-        appDiv.innerHTML = `<div class="error"><h1>发生错误</h1><p>${error.message}</p></div>`;
-        console.error('加载页面失败:', error);
-        return;
+      // 从 URL 获取 slug
+      function getSlugFromPath() {
+        const path = window.location.pathname;
+        let slug = path.slice(1);
+        if (slug === '' || slug === '/') slug = 'home';
+        return slug;
       }
 
-      if (!data) {
-        appDiv.innerHTML = `<div class="error"><h1>404</h1><p>页面未找到</p></div>`;
-        document.title = '404 - 页面未找到';
-        return;
-      }
+      async function loadPage() {
+        const slug = getSlugFromPath();
+        document.title = `加载中 - ${slug}`;
 
-      // 应用页面数据
-      document.title = data.title || slug;
+        const { data, error } = await supabase
+          .from('pages')
+          .select('*')
+          .eq('slug', slug)
+          .eq('is_published', true)
+          .maybeSingle();
 
-      // 注入 CSS
-      if (data.css) {
-        const style = document.createElement('style');
-        style.textContent = data.css;
-        document.head.appendChild(style);
-      }
+        const appDiv = document.getElementById('app');
 
-      // 渲染 HTML
-      appDiv.innerHTML = data.html || '<p>（空白页面）</p>';
+        if (error) {
+          appDiv.innerHTML = `<div class="error"><h1>发生错误</h1><p>${error.message}</p></div>`;
+          console.error('加载页面失败:', error);
+          return;
+        }
 
-      // 执行 JavaScript
-      if (data.javascript) {
-        try {
-          const scriptFunc = new Function(data.javascript);
-          scriptFunc();
-        } catch (e) {
-          console.error('执行页面 JS 出错:', e);
+        if (!data) {
+          appDiv.innerHTML = `<div class="error"><h1>404</h1><p>页面未找到</p></div>`;
+          document.title = '404 - 页面未找到';
+          return;
+        }
+
+        document.title = data.title || slug;
+
+        if (data.css) {
+          const style = document.createElement('style');
+          style.textContent = data.css;
+          document.head.appendChild(style);
+        }
+
+        appDiv.innerHTML = data.html || '<p>（空白页面）</p>';
+
+        if (data.javascript) {
+          try {
+            const scriptFunc = new Function(data.javascript);
+            scriptFunc();
+          } catch (e) {
+            console.error('执行页面 JS 出错:', e);
+          }
+        }
+
+        if (data.meta_description) {
+          let metaDesc = document.querySelector('meta[name="description"]');
+          if (!metaDesc) {
+            metaDesc = document.createElement('meta');
+            metaDesc.name = 'description';
+            document.head.appendChild(metaDesc);
+          }
+          metaDesc.content = data.meta_description;
         }
       }
 
-      // 更新 meta description
-      if (data.meta_description) {
-        let metaDesc = document.querySelector('meta[name="description"]');
-        if (!metaDesc) {
-          metaDesc = document.createElement('meta');
-          metaDesc.name = 'description';
-          document.head.appendChild(metaDesc);
-        }
-        metaDesc.content = data.meta_description;
-      }
-    }
-
-    loadPage();
+      loadPage();
+    })();
   </script>
 </body>
 </html>
