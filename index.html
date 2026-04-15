@@ -1,97 +1,161 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>我的网站</title>
-  <!-- 只引入一次 Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { margin: 0; padding: 0; font-family: system-ui, sans-serif; }
-    #loading { text-align: center; padding: 50px; color: #666; }
-    .error { text-align: center; padding: 50px; color: #d32f2f; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+        #content { min-height: 100vh; }
+        .error {
+            text-align: center;
+            padding: 80px 20px;
+            color: #dc2626;
+        }
+    </style>
 </head>
 <body>
-  <div id="app">
-    <div id="loading">加载页面中...</div>
-  </div>
+    <div id="content"></div>
 
-  <script>
-    (function(){
-      'use strict';
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-      // Supabase 配置
-      const SUPABASE_URL = 'https://sqhcbwqrpyzglbcclzzj.supabase.co';
-      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxaGNid3FycHl6Z2xiY2NsenpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODIwMDUsImV4cCI6MjA5MTc1ODAwNX0.1-MdHopPxwfzU9Zu78Ae4FiyMazAPswrA4HwcHJKeP0';
-      
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // ========== 配置区域 ==========
+        const SUPABASE_URL = 'https://sqhcbwqrpyzglbcclzzj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxaGNid3FycHl6Z2xiY2NsenpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODIwMDUsImV4cCI6MjA5MTc1ODAwNX0.1-MdHopPxwfzU9Zu78Ae4FiyMazAPswrA4HwcHJKeP0';
+        
+        // 🔥 页面名称
+        const PAGE_NAME = '后台';
+        // =============================
 
-      // 从 URL 获取 slug
-      function getSlugFromPath() {
-        const path = window.location.pathname;
-        let slug = path.slice(1);
-        if (slug === '' || slug === '/') slug = 'home';
-        return slug;
-      }
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.sharedSupabase = supabase;
 
-      async function loadPage() {
-        const slug = getSlugFromPath();
-        document.title = `加载中 - ${slug}`;
+        const contentDiv = document.getElementById('content');
 
-        const { data, error } = await supabase
-          .from('pages')
-          .select('*')
-          .eq('slug', slug)
-          .eq('is_published', true)
-          .maybeSingle();
+        async function loadPage(pageName) {
+            if (!pageName) {
+                contentDiv.innerHTML = `<div class="error"><h3>❌ 错误</h3><p>未指定页面名称</p></div>`;
+                return;
+            }
+            
+            const { data, error } = await supabase
+                .from('page_code')
+                .select('*')
+                .eq('page_name', pageName)
+                .single();
 
-        const appDiv = document.getElementById('app');
+            if (error) {
+                contentDiv.innerHTML = `<div class="error">
+                    <h3>❌ 加载失败</h3>
+                    <p>${error.message}</p>
+                    <p style="margin-top:20px;font-size:14px;">页面 "${pageName}" 不存在</p>
+                </div>`;
+                document.title = '错误';
+                return;
+            }
 
-        if (error) {
-          appDiv.innerHTML = `<div class="error"><h1>发生错误</h1><p>${error.message}</p></div>`;
-          console.error('加载页面失败:', error);
-          return;
+            document.title = pageName;
+
+            // 清除旧样式和脚本
+            document.querySelectorAll('style[data-dynamic]').forEach(s => s.remove());
+            document.querySelectorAll('script[data-dynamic]').forEach(s => s.remove());
+
+            // 注入 CSS
+            if (data.css_content) {
+                const style = document.createElement('style');
+                style.setAttribute('data-dynamic', 'true');
+                style.textContent = data.css_content;
+                document.head.appendChild(style);
+            }
+
+            // 注入 HTML
+            contentDiv.innerHTML = data.html_content || '';
+
+            // 执行 JavaScript
+            if (data.js_content) {
+                const script = document.createElement('script');
+                script.setAttribute('data-dynamic', 'true');
+                script.setAttribute('type', 'module');
+                script.textContent = data.js_content;
+                document.body.appendChild(script);
+            }
         }
 
-        if (!data) {
-          appDiv.innerHTML = `<div class="error"><h1>404</h1><p>页面未找到</p></div>`;
-          document.title = '404 - 页面未找到';
-          return;
+        // 立即加载页面，不显示加载动画
+        loadPage(PAGE_NAME);
+    </script>
+    <script>import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+        // ========== 配置区域 ==========
+        const SUPABASE_URL = 'https://sqhcbwqrpyzglbcclzzj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxaGNid3FycHl6Z2xiY2NsenpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxODIwMDUsImV4cCI6MjA5MTc1ODAwNX0.1-MdHopPxwfzU9Zu78Ae4FiyMazAPswrA4HwcHJKeP0';
+        
+        // 🔥 页面名称
+        const PAGE_NAME = '值守话术';
+        // =============================
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.sharedSupabase = supabase;
+
+        const contentDiv = document.getElementById('content');
+
+        async function loadPage(pageName) {
+            if (!pageName) {
+                contentDiv.innerHTML = `<div class="error"><h3>❌ 错误</h3><p>未指定页面名称</p></div>`;
+                return;
+            }
+            
+            const { data, error } = await supabase
+                .from('page_code')
+                .select('*')
+                .eq('page_name', pageName)
+                .single();
+
+            if (error) {
+                contentDiv.innerHTML = `<div class="error">
+                    <h3>❌ 加载失败</h3>
+                    <p>${error.message}</p>
+                    <p style="margin-top:20px;font-size:14px;">页面 "${pageName}" 不存在</p>
+                </div>`;
+                document.title = '错误';
+                return;
+            }
+
+            document.title = pageName;
+
+            // 清除旧样式和脚本
+            document.querySelectorAll('style[data-dynamic]').forEach(s => s.remove());
+            document.querySelectorAll('script[data-dynamic]').forEach(s => s.remove());
+
+            // 注入 CSS
+            if (data.css_content) {
+                const style = document.createElement('style');
+                style.setAttribute('data-dynamic', 'true');
+                style.textContent = data.css_content;
+                document.head.appendChild(style);
+            }
+
+            // 注入 HTML
+            contentDiv.innerHTML = data.html_content || '';
+
+            // 执行 JavaScript
+            if (data.js_content) {
+                const script = document.createElement('script');
+                script.setAttribute('data-dynamic', 'true');
+                script.setAttribute('type', 'module');
+                script.textContent = data.js_content;
+                document.body.appendChild(script);
+            }
         }
 
-        document.title = data.title || slug;
-
-        if (data.css) {
-          const style = document.createElement('style');
-          style.textContent = data.css;
-          document.head.appendChild(style);
-        }
-
-        appDiv.innerHTML = data.html || '<p>（空白页面）</p>';
-
-        if (data.javascript) {
-          try {
-            const scriptFunc = new Function(data.javascript);
-            scriptFunc();
-          } catch (e) {
-            console.error('执行页面 JS 出错:', e);
-          }
-        }
-
-        if (data.meta_description) {
-          let metaDesc = document.querySelector('meta[name="description"]');
-          if (!metaDesc) {
-            metaDesc = document.createElement('meta');
-            metaDesc.name = 'description';
-            document.head.appendChild(metaDesc);
-          }
-          metaDesc.content = data.meta_description;
-        }
-      }
-
-      loadPage();
-    })();
-  </script>
+        // 立即加载页面，不显示加载动画
+        loadPage(PAGE_NAME);</script>
 </body>
 </html>
